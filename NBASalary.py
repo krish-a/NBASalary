@@ -4,6 +4,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import Lasso, Ridge
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.feature_selection import SelectFromModel
 
 # Function to predict salary for a new player
 # Example usage:
@@ -73,5 +78,80 @@ def stats():
   feature_importance = pd.DataFrame({'feature': X.columns, 'importance': model.feature_importances_})
   feature_importance = feature_importance.sort_values('importance', ascending=False)
 
+  #Evaluate Results
+  data['PTS_per_G'] = data['PTS'] / data['G']
+  data['TRB_per_G'] = data['TRB'] / data['G']
+  data['AST_per_G'] = data['AST'] / data['G']
+  X = data.drop(['Salary'], axis=1)
+  y = data['Salary']
+  X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+  scaler = StandardScaler()
+  X_train_scaled = scaler.fit_transform(X_train)
+  X_test_scaled = scaler.transform(X_test)
+  selector = SelectFromModel(RandomForestRegressor(n_estimators=100, random_state=42), threshold='median')
+  X_train_selected = selector.fit_transform(X_train_scaled, y_train)
+  X_test_selected = selector.transform(X_test_scaled)
 
-  
+  #Try different models
+  models = {
+    'Random Forest': RandomForestRegressor(random_state=42),
+    'Gradient Boosting': GradientBoostingRegressor(random_state=42),
+    'Lasso': Lasso(random_state=42),
+    'Ridge': Ridge(random_state=42)
+  }
+  best_model = None
+  best_score = 0
+  for name, model in models.items():
+    # Define parameter grid for each model
+    if name == 'Random Forest':
+        param_grid = {
+            'n_estimators': [100, 200, 300],
+            'max_depth': [None, 10, 20, 30],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4]
+        }
+    elif name == 'Gradient Boosting':
+        param_grid = {
+            'n_estimators': [100, 200, 300],
+            'learning_rate': [0.01, 0.1, 0.2],
+            'max_depth': [3, 4, 5]
+        }
+    else:  # Lasso and Ridge
+        param_grid = {
+            'alpha': [0.1, 1, 10, 100]
+        }
+        
+    #  Grid search
+    grid_search = GridSearchCV(model, param_grid, cv=5, scoring='r2', n_jobs=-1)
+    grid_search.fit(X_train_selected, y_train)
+
+    y_pred = grid_search.predict(X_test_selected)
+    r2 = r2_score(y_test, y_pred)
+    #print(f"{name} - R^2 Score: {r2:.4f}")
+    if r2 > best_score:
+        best_score = r2
+        best_model = grid_search.best_estimator_
+
+  #print(f"\nBest model: {type(best_model).__name__}")
+  #print(f"Best R^2 Score: {best_score:.4f}")
+
+  # Use  best model for final predictions
+  y_pred_best = best_model.predict(X_test_selected)
+
+  # final metrics
+  mse = mean_squared_error(y_test, y_pred_best)
+  rmse = np.sqrt(mse)
+  r2 = r2_score(y_test, y_pred_best)
+
+  print(f"\nFinal Results:")
+  print(f"Root Mean Squared Error: ${rmse:.2f}")
+  print(f"R-squared Score: {r2:.4f}")
+
+  if hasattr(best_model, 'feature_importances_'):
+    feature_importance = pd.DataFrame({
+        'feature': X.columns[selector.get_support()],
+        'importance': best_model.feature_importances_
+    })
+    feature_importance = feature_importance.sort_values('importance', ascending=False)
+    print("\nTop 10 Feature Importances:")
+    print(feature_importance.head(10))
