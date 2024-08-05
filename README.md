@@ -3,7 +3,8 @@
 This repository contains Python code to predict salaries for NBA players based on their stats using machine learning. It's geared towards role players rather than star players who negotiate higher salaries based on their reputation.
 
 ## How It Works
-- Loads player stats and salary data from CSV files (stats.csv and salary.csv).
+- Scrapes player stats and salary data from websites using requests and BeautifulSoup libraries.
+- Parses and cleans the scraped data, then loads it into pandas dataframes.
 - Aggregates stats per player and merges them with salary info.
 - Splits data into training and testing sets.
 - Standardizes features and trains models like RandomForest and GradientBoosting using optimal settings found via grid search.
