@@ -1,4 +1,4 @@
-# NBA Player Salary Predictor
+# Statpay: The NBA Player Salary Predictor
 ## Overview
 This repository contains Python code to predict salaries for NBA players based on their stats using machine learning. It's geared towards role players rather than star players who negotiate higher salaries based on their reputation.
 
